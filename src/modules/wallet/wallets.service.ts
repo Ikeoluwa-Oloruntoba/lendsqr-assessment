@@ -39,7 +39,7 @@ export class WalletService {
 
   async validateAmount(amount: number): Promise<void> {
     if (amount <= 0) {
-      throw new Error('Amount must be greater than zero');
+      throw new BadRequestException('Amount must be greater than zero');
     }
   }
 
@@ -65,22 +65,29 @@ export class WalletService {
   async checkIfBalanceIsSufficient(userId: string, amount: number){
     const currentBalance = await this.computeBalance(userId);
     if (currentBalance < amount) {
-      throw new Error('Insufficient balance');
+      throw new BadRequestException('Insufficient balance');
     }
   }
 
   async computeBalance(userId: string): Promise<number> {
-
     const lastSnapshot = await this.snapshotsRepository.getLastSnapshot(userId);
-    const balance = lastSnapshot ? lastSnapshot.balance : 0;
+    let balance = lastSnapshot ? Number(lastSnapshot.balance ): 0;
 
     const transactions = await this.transactionsRepository.getUserTransactionsSinceSnapshot(
-      userId,
-      lastSnapshot ? lastSnapshot.id : null,
+        userId,
+        lastSnapshot ? lastSnapshot.id : null,
     );
 
-    return transactions.reduce((acc, tx) => acc + (tx.type === 'CREDIT' ? tx.amount : -tx.amount), balance);
-  }
+    transactions.forEach((tx) => {
+        if (tx.type === 'CREDIT') {
+            balance += Number(tx.amount);
+        } else if (tx.type === 'DEBIT') {
+            balance -= Number(tx.amount);
+        }
+    });
+
+    return balance;
+}
 
   async createSnapshotIfNeeded(userId: string): Promise<void> {
     const transactionCount = await this.transactionsRepository.countTransactions(userId);

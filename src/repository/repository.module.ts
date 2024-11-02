@@ -5,6 +5,7 @@ import { TransactionsRepository } from './knex/transaction.repository';
 import { SnapshotsRepository } from './knex/snapshot.repository';
 import { TokensRepository } from './knex/tokens.repository';
 import { KnexModule } from 'nest-knexjs';
+import { MYSQLDB_DATABASE, MYSQLDB_HOST, MYSQLDB_LOCAL_PORT, MYSQLDB_PASSWORD, MYSQLDB_USER } from 'src/config/env.config';
 
 @Global()
 @Module({
@@ -13,11 +14,11 @@ import { KnexModule } from 'nest-knexjs';
       client: 'mysql2',
       version: '8.0',
       connection: {
-        host: 'democredit-db.demo-credit.orb.local',
-        port: 3306,
-        user: 'lendsqr',
-        password: 'password',
-        database: 'demoCredit',
+        host: MYSQLDB_HOST,
+        port: MYSQLDB_LOCAL_PORT,
+        user: MYSQLDB_USER,
+        password: MYSQLDB_PASSWORD,
+        database: MYSQLDB_DATABASE,
         ssl: false
       },
       migrations: {

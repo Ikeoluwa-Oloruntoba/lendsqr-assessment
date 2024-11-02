@@ -31,7 +31,7 @@ export class WithdrawalService {
         await this.walletService.handleTransaction(user.id, amount, TRANSACTION_TYPE.DEBIT);
     
         // Create a credit transaction for the recipient
-        await this.walletService.handleTransaction(toUserId, amount, TRANSACTION_TYPE.CREDIT);
+        await this.walletService.handleTransaction(toUser.id, amount, TRANSACTION_TYPE.CREDIT);
     
       }
     

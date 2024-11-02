@@ -23,7 +23,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { userId: user.id, email: user.email };
+    const payload = { id: user.id, email: user.email };
     const accessToken = sign(payload,  process.env.JWT_SECRET, {
       expiresIn: '1h',
       issuer: 'Lendsqr',

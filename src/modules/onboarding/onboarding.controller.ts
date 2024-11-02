@@ -1,8 +1,9 @@
-import { BadRequestException, Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
 import { CreateUserDTO } from './dto/createUser.dto';
 import { UpgradeKycDto } from './dto/upgrade-kyc.dto';
 import { GetUser } from 'src/common/decorators/get-current-user.decorator';
+import { UserGuard } from 'src/common/guards/user.guard';
 
 @Controller('onboarding')
 export class OnboardingController {
@@ -20,6 +21,7 @@ export class OnboardingController {
 
   @Post('upgrade-kyc')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(UserGuard)
   async upgradeKyc(@Body() upgradeKycDto: UpgradeKycDto, @GetUser() user: any): Promise<{ message: string }> {
     const upgraded = await this.onboardingService.upgradeAccount(user.id, upgradeKycDto);
     if (!upgraded) {

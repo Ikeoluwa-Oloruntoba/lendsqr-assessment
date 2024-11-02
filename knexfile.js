@@ -9,11 +9,11 @@ module.exports = {
     client: 'mysql2',
     version: '8.0',
     connection: {
-      host: 'democredit-db.demo-credit.orb.local',
-      port: 3306,
-      user: 'lendsqr',
-      password: 'password',
-      database: 'demoCredit',
+      host: "mysql.railway.internal",
+      port: Number(process.env.MYSQLDB_LOCAL_PORT),
+      user: "root",
+      password: "cxSBYvLecaUkuDykeUEsSamJBojsfQQc",
+      database: "railway",
       ssl: false
     },
     migrations: {

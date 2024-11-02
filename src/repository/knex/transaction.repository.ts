@@ -11,7 +11,7 @@ export class TransactionsRepository {
   async createTransaction(data: any): Promise<any> {
     const transactionId = uuidv4();
     const transactionRef = TransactionHelper.generateTransactionRef();
-    const transaction = { id: transactionId, reference: transactionRef, ...data };
+    const transaction = { id: transactionId, reference: transactionRef, status: "SUCCESS", ...data };
 
     return await this.knex.table('transactions').insert(transaction).returning('*');
   }
@@ -19,14 +19,13 @@ export class TransactionsRepository {
   async getUserTransactionsSinceSnapshot(userId: string, lastSnapshotId: string): Promise<any[]> {
     return await this.knex.table('transactions')
       .where({ user_id: userId })
-      .andWhere('id', '>', lastSnapshotId)
       .orderBy('created_at', 'asc');
   }
 
   async countTransactions(userId: string): Promise<number> {
     const result = await this.knex.table('transactions')
       .count('* as count')
-      .where('user_id', userId)
+      .where({ user_id: userId })
       .first();
 
     return Number(result.count);
