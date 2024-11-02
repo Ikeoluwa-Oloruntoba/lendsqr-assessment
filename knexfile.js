@@ -9,8 +9,8 @@ module.exports = {
     client: 'mysql2',
     version: '8.0',
     connection: {
-      host: process.env.MYSQLDB_HOST,
-      port: Number(process.env.MYSQLDB_LOCAL_PORT),
+      host: "mysql.railway.internal",
+      port:  3306,
       user: "root",
       password: "cxSBYvLecaUkuDykeUEsSamJBojsfQQc",
       database: "railway",
