@@ -12,7 +12,7 @@ module.exports = {
       host: "mysql.railway.internal",
       port:  3306,
       user: "root",
-      password: "cxSBYvLecaUkuDykeUEsSamJBojsfQQc",
+      password: "fWpFDjkvZmACnCaezvLcryMHPLzjLRez",
       database: "railway",
       ssl: false
     },
