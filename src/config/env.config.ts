@@ -5,6 +5,8 @@ config();
 
 export const NODE_ENV = env.get('NODE_ENV').asString();
 
+export const REDIS_URL = env.get('REDIS_URL').asString();
+
 export const MYSQLDB_HOST = env.get('MYSQLDB_HOST').asString();
 
 export const MYSQLDB_PASSWORD = env.get('MYSQLDB_PASSWORD').asString();

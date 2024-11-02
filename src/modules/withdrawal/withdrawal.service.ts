@@ -1,55 +1,79 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { WalletService } from '../wallet/wallets.service';
 import { TransferFundsDto } from './dto/transfer.dto';
 import { WithdrawFundsDto } from './dto/withdrawal.dto';
 import { TRANSACTION_TYPE } from 'src/common/constants/transaction.type';
+import Redlock from 'redlock';
+import { LockService } from 'src/integrations/redlock/redlock.service';
 
 @Injectable()
 export class WithdrawalService {
 
-    constructor(
-        private readonly walletService: WalletService,
-      ) {}
+  private readonly lockTTL = 15000;
 
-    async transferFunds(user: any, data: TransferFundsDto): Promise<void> {
-       
-        const { amount, toUserId } = data;
+  constructor(
+      private readonly walletService: WalletService,
+      private readonly lockService: LockService
+    ) {}
 
-        await this.walletService.validateAmount(amount);
-        // Check if both users exist
-        const fromUser = await this.walletService.checkUserExistence(user.email);
+  async transferFunds(user: any, data: TransferFundsDto): Promise<void> {
 
-        await this.walletService.validateTransactionLimit(fromUser, amount, TRANSACTION_TYPE.DEBIT)
-    
-        const toUser = await this.walletService.checkUserExistence(toUserId);
+    // const lockKey = `wallet:lock:${user.id}`
 
-        await this.walletService.validateTransactionLimit(toUser, amount, TRANSACTION_TYPE.CREDIT)
+    // const lock = await this.lockService.acquireLock(lockKey, this.lockTTL);
+      
+    //  try{
 
-        await this.walletService.checkIfBalanceIsSufficient(user.id, amount)
-    
-        // Create a debit transaction for the sender
-        await this.walletService.handleTransaction(user.id, amount, TRANSACTION_TYPE.DEBIT);
-    
-        // Create a credit transaction for the recipient
-        await this.walletService.handleTransaction(toUser.id, amount, TRANSACTION_TYPE.CREDIT);
-    
-      }
-    
-      async withdrawFunds(user: any, data: WithdrawFundsDto): Promise<void> {
+      const { amount, toUserId } = data;
 
-        const { amount } = data;
+      await this.walletService.validateAmount(amount);
 
-        const userData = await this.walletService.checkUserExistence(user.email);
-        // Validate the amount
-        await this.walletService.validateAmount(amount);
+      const fromUser = await this.walletService.checkUserExistence(user.email);
 
-        await this.walletService.validateTransactionLimit(userData, amount, TRANSACTION_TYPE.DEBIT)
-        // Check user's current balance (consider implementing a method to get the current balance)
-        await this.walletService.checkIfBalanceIsSufficient(user.id, amount)
+      await this.walletService.validateTransactionLimit(fromUser, amount, TRANSACTION_TYPE.DEBIT)
+  
+      const toUser = await this.walletService.checkUserExistence(toUserId);
+
+      await this.walletService.validateTransactionLimit(toUser, amount, TRANSACTION_TYPE.CREDIT)
+
+      await this.walletService.checkIfBalanceIsSufficient(user.id, amount)
+  
+      await this.walletService.handleTransaction(user.id, amount, TRANSACTION_TYPE.DEBIT);
+  
+      await this.walletService.handleTransaction(toUser.id, amount, TRANSACTION_TYPE.CREDIT);
+
+    // } finally {
+
+    //   await this.lockService.releaseLock(lock);
+    // } 
+  
+  }
+  
+    async withdrawFunds(user: any, data: WithdrawFundsDto): Promise<void> {
+
+    // const lockKey = `wallet:lock:${user.id}`
+
+    // const lock = await this.lockService.acquireLock(lockKey, this.lockTTL);
     
-        // Create a debit transaction for the user
-        await this.walletService.handleTransaction(user.id, amount, TRANSACTION_TYPE.DEBIT);
-    
-    
-      }
+    // try{
+
+      const { amount } = data;
+
+      const userData = await this.walletService.checkUserExistence(user.email);
+ 
+      await this.walletService.validateAmount(amount);
+
+      await this.walletService.validateTransactionLimit(userData, amount, TRANSACTION_TYPE.DEBIT)
+
+      await this.walletService.checkIfBalanceIsSufficient(user.id, amount)
+  
+      await this.walletService.handleTransaction(user.id, amount, TRANSACTION_TYPE.DEBIT);
+
+    // } finally {
+
+    //   await this.lockService.releaseLock(lock);
+
+    // } 
+  
+  }
 }

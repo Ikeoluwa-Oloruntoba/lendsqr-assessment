@@ -30,5 +30,6 @@ import { JwtModule } from '@nestjs/jwt';
       signOptions: { expiresIn: '60s' },
     }),
   ],
+
 })
 export class AppModule {}
