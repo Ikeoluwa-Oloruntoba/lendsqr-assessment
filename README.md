@@ -1,73 +1,182 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# Demo Credit Wallet MVP
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+This project provides a wallet microservice for Demo Credit, a mobile lending app. The wallet MVP includes account creation, deposit, withdrawal, and fund transfer functionalities with security and data consistency through Redis-based distributed locking.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **User Wallet Account Creation**: Onboards users based on KYC verification.
+- **Wallet Transactions**: Supports deposits, withdrawals, and transfers between user accounts.
+- **Transaction Snapshotting**: Efficiently calculates balance by storing periodic snapshots.
+- **KYC-Based Transaction Limits**: Users have transaction limits based on their KYC level.
+- **Distributed Locking with Redis**: Prevents race conditions during concurrent operations.
+- **Blacklist Verification**: Checks Lendsqr Adjutor Karma list for user onboarding.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Prerequisites
+
+- Node.js (Latest recommended)
+- Redis
+- MySQL
 
 ## Installation
 
-```bash
-$ npm install
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/your-repo/demo-credit-wallet.git
+   cd demo-credit-wallet
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Configure Environment Variables**: Copy `.env.example` to `.env` and configure the following:
+   ```plaintext
+   DATABASE_URL=mysql://user:password@localhost:3306/demo_credit
+   REDIS_URL=redis://localhost:6379
+   ADJUTOR_API_URL=https://adjutor.lendsqr.com/v2
+   ```
+
+4. **Run Migrations**:
+   ```bash
+    npx knex migrate:latest
+   ```
+
+5. **Start the Application**:
+   ```bash
+   npm run start
+   ```
+
+## Modules and Services
+
+### 1. **User Onboarding and KYC Verification**
+
+The `OnboardingService` handles user registration with verification against the Lendsqr Adjutor Karma list. Users on the blacklist cannot be onboarded.
+
+```typescript
+async createAccount(dto: CreateUserDTO) {
+  const isBlacklisted = await this.adjutorService.checkKarmaList(dto.email);
+  if (isBlacklisted) {
+    throw new Error("User cannot be onboarded due to blacklist status.");
+  }
+  return this.userRepository.create({
+    ...dto,
+    status: 'ACTIVE',
+    kyc_status: 'NOT_VERIFIED',
+    account_tier: 'BASIC',
+  });
+}
 ```
 
-## Running the app
+### 2. **Wallet Service**
 
-```bash
-# development
-$ npm run start
+- **Transaction Operations**: Implements `deposit`, `withdraw`, and `transfer` methods.
+- **Distributed Locking with Redis**: Prevents race conditions using `Redlock` during transactions.
+  
+   Example for `deposit` method with Redis lock:
 
-# watch mode
-$ npm run start:dev
+   ```typescript
+   async deposit(userId: string, amount: number): Promise<void> {
+     const lockKey = `wallet:lock:${userId}`;
+     const lock = await this.redlock.acquire([lockKey], this.lockTTL);
+     try {
+       // Perform deposit logic here...
+     } finally {
+       await this.redlock.release(lock);
+     }
+   }
+   ```
 
-# production mode
-$ npm run start:prod
+### 3. **Snapshot Repository**
+
+This repository uses periodic snapshots to efficiently compute user balances, optimizing the retrieval of transaction history.
+
+```typescript
+async computeBalance(userId: string): Promise<number> {
+  const lastSnapshot = await this.snapshotsRepository.getLastSnapshot(userId);
+  const balance = lastSnapshot ? lastSnapshot.balance : 0;
+
+  const transactions = await this.transactionsRepository.getUserTransactionsSinceSnapshot(
+    userId,
+    lastSnapshot ? lastSnapshot.id : null,
+  );
+
+  return transactions.reduce((acc, tx) => acc + (tx.type === 'CREDIT' ? tx.amount : -tx.amount), balance);
+}
 ```
 
-## Test
+### 4. **Adjutor Integration Helper**
 
-```bash
-# unit tests
-$ npm run test
+A helper service to verify users against the Lendsqr Adjutor Karma list before onboarding.
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```typescript
+async checkKarmaList(identity: string): Promise<boolean> {
+  try {
+    const response = await this.axiosInstance.get(`/karma/${identity}`);
+    return response.data?.blacklisted === true;
+  } catch (error) {
+    throw new HttpException('Error connecting to Adjutor API', HttpStatus.SERVICE_UNAVAILABLE);
+  }
+}
 ```
 
-## Support
+## DTOs
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+DTOs are used across services to enforce the shape of data for consistent data validation and formatting:
 
-## Stay in touch
+- **CreateUserDTO**: For onboarding new users.
+- **UpgradeKycDto**: For handling account upgrades.
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Usage
 
-## License
+### 1. **Create a New Account**
 
-Nest is [MIT licensed](LICENSE).
+```typescript
+POST /auth/register
+{
+  "email": "user@example.com",
+  "password": "securepassword"
+}
+```
+
+### 2. **Deposit Funds**
+
+```typescript
+POST /wallet/deposit
+{
+  "amount": 1000
+}
+```
+
+### 3. **Transfer Funds**
+
+```typescript
+POST /wallet/transfer
+{
+  "toUserId": "recipient-id",
+  "amount": 500
+}
+```
+
+### 4. **Withdraw Funds**
+
+```typescript
+POST /wallet/withdraw
+{
+  "amount": 300
+}
+```
+
+## Testing
+
+Run tests for the wallet service and repository methods:
+
+```bash
+npm run test
+```
+
+## Future Improvements
+
+- **Further Enhancements to Snapshot Frequency**: Configurable snapshot frequencies for high-transaction users.
+- **Extended KYC Levels and Limits**: More flexible deposit and withdrawal limits based on user KYC tier.
+- **Scalability Improvements**: Implement horizontal scaling with Redis Cluster.
