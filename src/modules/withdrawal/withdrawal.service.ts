@@ -18,11 +18,11 @@ export class WithdrawalService {
 
   async transferFunds(user: any, data: TransferFundsDto): Promise<void> {
 
-    const lockKey = `wallet:lock:${user.id}`
+    // const lockKey = `wallet:lock:${user.id}`
 
-    const lock = await this.lockService.acquireLock(lockKey, this.lockTTL);
+    // const lock = await this.lockService.acquireLock(lockKey, this.lockTTL);
       
-     try{
+    //  try{
 
       const { amount, toUserId } = data;
 
@@ -42,20 +42,20 @@ export class WithdrawalService {
   
       await this.walletService.handleTransaction(toUser.id, amount, TRANSACTION_TYPE.CREDIT);
 
-    } finally {
+    // } finally {
 
-      await this.lockService.releaseLock(lock);
-    } 
+    //   await this.lockService.releaseLock(lock);
+    // } 
   
   }
   
     async withdrawFunds(user: any, data: WithdrawFundsDto): Promise<void> {
 
-    const lockKey = `wallet:lock:${user.id}`
+    // const lockKey = `wallet:lock:${user.id}`
 
-    const lock = await this.lockService.acquireLock(lockKey, this.lockTTL);
+    // const lock = await this.lockService.acquireLock(lockKey, this.lockTTL);
     
-    try{
+    // try{
 
       const { amount } = data;
 
@@ -69,11 +69,11 @@ export class WithdrawalService {
   
       await this.walletService.handleTransaction(user.id, amount, TRANSACTION_TYPE.DEBIT);
 
-    } finally {
+    // } finally {
 
-      await this.lockService.releaseLock(lock);
+    //   await this.lockService.releaseLock(lock);
 
-    } 
+    // } 
   
   }
 }

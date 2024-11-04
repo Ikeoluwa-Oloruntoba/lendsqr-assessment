@@ -15,6 +15,11 @@ export class OnboardingService {
       ) {}
     
     async createAccount(dto: CreateUserDTO) {
+
+      const findUser = await this.userRepository.findByEmail(dto.email);
+      if(findUser){
+        throw new BadRequestException('User Already Exist');
+      }
       // Check if user is in the Lendsqr Adjutor Karma blacklist
       const isBlacklisted = await this.adjutorService.checkKarmaList(dto.email);
   
